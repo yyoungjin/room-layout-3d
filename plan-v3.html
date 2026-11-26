@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>평면도 v3</title>
+<style>
+  :root {
+    --bg: #f4f4f2; --card: #ffffff; --ink: #1e1e1e; --muted: #77746f; --line: #c9c7c3;
+    --wall: #2b2b2b; --floor: #e7e4df; --tile: #d9dbdc; --bath: #dfe6e8; --shower: #cfdadd;
+    --built: #f3f3f1; --furn: #ffffff; --dark: #2b2b2b; --rug: #d8d6d2; --zone: rgba(120,120,120,.10);
+    --bed: #fbfbfa; --blanket: #c9c9c6; --cushion: #a9a9a6; --lamp: #ffd9a0; --accent: #c0612b; --gap: #4a7fb0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121315; --card: #1b1d21; --ink: #ecebe8; --muted: #9b978f; --line: #4a4d53;
+      --wall: #d9d7d2; --floor: #2a2b2e; --tile: #33373a; --bath: #263236; --shower: #213036;
+      --built: #3a3c40; --furn: #46484d; --dark: #0e0e0f; --rug: #3b3c3f; --zone: rgba(200,200,200,.07);
+      --bed: #505257; --blanket: #66686d; --cushion: #7d7f84; --lamp: #e8b56a; --accent: #f0915a; --gap: #7fb3e0;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121315; --card: #1b1d21; --ink: #ecebe8; --muted: #9b978f; --line: #4a4d53;
+    --wall: #d9d7d2; --floor: #2a2b2e; --tile: #33373a; --bath: #263236; --shower: #213036;
+    --built: #3a3c40; --furn: #46484d; --dark: #0e0e0f; --rug: #3b3c3f; --zone: rgba(200,200,200,.07);
+    --bed: #505257; --blanket: #66686d; --cushion: #7d7f84; --lamp: #e8b56a; --accent: #f0915a; --gap: #7fb3e0;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 16px 32px; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  p.sub { margin: 0 0 16px; color: var(--muted); font-size: .9rem; }
+  .card { background: var(--card); border-radius: 14px; padding: 12px; overflow-x: auto; }
+  svg { display: block; width: 100%; min-width: 560px; height: auto; }
+  .floor { fill: var(--floor); } .tile { fill: var(--tile); } .bath { fill: var(--bath); } .shower { fill: var(--shower); }
+  .rug { fill: var(--rug); } .zone { fill: var(--zone); stroke: var(--line); stroke-dasharray: 4 4; }
+  .duct { fill: var(--wall); opacity: .55; }
+  .built { fill: var(--built); stroke: var(--line); } .furn { fill: var(--furn); stroke: var(--line); }
+  .thin { stroke: var(--line); } .sink { fill: none; stroke: var(--line); } .hob { fill: none; stroke: var(--line); }
+  .mat { fill: var(--cushion); opacity: .6; }
+  .bed { fill: var(--bed); stroke: var(--line); } .head { fill: var(--bed); stroke: var(--ink); stroke-width: 1.2; }
+  .pillow { fill: var(--card); stroke: var(--line); } .blanket { fill: var(--blanket); opacity: .55; }
+  .cushion { fill: var(--cushion); } .basket { fill: none; stroke: var(--muted); }
+  .dark { fill: var(--dark); } .chair { fill: var(--dark); opacity: .85; } .lamp { fill: var(--lamp); stroke: var(--dark); }
+  .wall { fill: var(--wall); } .window { fill: var(--card); } .gap { fill: var(--floor); }
+  .glass { stroke: var(--gap); stroke-width: 2.5; } .door { stroke: var(--wall); stroke-width: 2; }
+  .swing { fill: none; stroke: var(--muted); stroke-dasharray: 3 3; }
+  .lbl { fill: var(--ink); font-size: 12px; } .lbl.small { font-size: 10.5px; fill: var(--muted); } .mid { text-anchor: middle; }
+  line.dim { stroke: var(--muted); stroke-width: 1; } line.dim.m { stroke: var(--accent); } line.dim.gap { stroke: var(--gap); }
+  .dimt { font-size: 10.5px; text-anchor: middle; fill: var(--muted); font-variant-numeric: tabular-nums; }
+  .dimt.m { fill: var(--accent); font-weight: 600; } .dimt.gap { fill: var(--gap); font-weight: 600; }
+  .note { margin: 12px 4px 0; color: var(--muted); font-size: .82rem; line-height: 1.5; }
+  .note b { color: var(--accent); font-weight: 600; } .note i { color: var(--gap); font-style: normal; font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>평면도 v3</h1>
+  <p class="sub">침대 아래벽 · 작업 책상 창가 · 빌트인은 선반으로 사용 (단위 mm)</p>
+  <div class="card">
+<svg viewBox="0 0 835 498" role="img" aria-label="v3 평면도">
+<polygon points="178.0,70.0 648.9,70.0 648.9,106.0 768.9,106.0 768.9,424.0 70.0,424.0 70.0,136.0 178.0,136.0" class="floor"/>
+<rect x="652.5" y="106.0" width="116.4" height="150.0" class="tile" />
+<rect x="567.3" y="169.6" width="81.6" height="74.4" class="tile" />
+<rect x="512.1" y="264.7" width="136.8" height="159.3" class="bath" />
+<rect x="656.1" y="264.7" width="112.8" height="94.1" class="shower" />
+<rect x="656.1" y="364.6" width="112.8" height="59.4" class="bath" />
+<rect x="202.0" y="211.6" width="230.9" height="148.8" class="rug" rx="6"/>
+<rect x="178.0" y="139.6" width="281.3" height="72.0" class="zone" />
+<rect x="178.0" y="70.0" width="281.3" height="69.6" class="built" />
+<line x1="248.3" y1="70.0" x2="248.3" y2="139.6" class="thin" />
+<line x1="318.6" y1="70.0" x2="318.6" y2="139.6" class="thin" />
+<line x1="389.0" y1="70.0" x2="389.0" y2="139.6" class="thin" />
+<text x="318.6" y="109.6" class="lbl mid" >붙박이장</text>
+<rect x="459.3" y="70.0" width="133.2" height="74.4" class="built" />
+<rect x="471.3" y="84.4" width="52.8" height="43.2" class="sink" rx="4"/>
+<circle cx="551.7" cy="94.0" r="9.6" class="hob"/>
+<circle cx="573.3" cy="118.0" r="9.6" class="hob"/>
+<text x="525.9" y="161.2" class="lbl small mid" >주방</text>
+<rect x="596.1" y="103.6" width="48.0" height="40.8" class="furn" />
+<rect x="670.5" y="214.0" width="84.0" height="28.8" class="mat" rx="3"/>
+<text x="710.7" y="192.4" class="lbl small mid" >현관</text>
+<text x="580.5" y="364.0" class="lbl small mid" >욕실</text>
+<text x="712.5" y="316.0" class="lbl small mid" >샤워실</text>
+<rect x="84.4" y="288.4" width="246.0" height="135.6" class="bed" />
+<rect x="70.0" y="288.4" width="14.4" height="135.6" class="head" />
+<rect x="94.0" y="306.4" width="42.0" height="99.6" class="pillow" rx="6"/>
+<rect x="166.0" y="289.6" width="163.2" height="133.2" class="blanket" />
+<rect x="160.0" y="404.8" width="48.0" height="16.8" class="cushion" rx="4"/>
+<rect x="216.4" y="404.8" width="48.0" height="16.8" class="cushion" rx="4"/>
+<rect x="272.8" y="404.8" width="48.0" height="16.8" class="cushion" rx="4"/>
+<text x="226.0" y="348.4" class="lbl mid" >침대 (슈퍼싱글)</text>
+<rect x="70.0" y="139.6" width="60.0" height="144.0" class="furn" />
+<rect x="86.8" y="186.4" width="3.6" height="74.4" class="dark" />
+<circle cx="88.0" cy="160.0" r="7.2" class="lamp"/>
+<rect x="142.0" y="197.2" width="52.8" height="52.8" class="chair" rx="8"/>
+<text x="103.6" y="190.0" class="lbl small mid" transform="rotate(-90 106.0 190.0)">작업 책상</text>
+<rect x="432.9" y="256.0" width="60.0" height="168.0" class="built" />
+<rect x="440.1" y="265.6" width="40.8" height="45.6" class="basket" stroke-dasharray="3 3"/>
+<rect x="440.1" y="316.0" width="40.8" height="45.6" class="basket" stroke-dasharray="3 3"/>
+<rect x="440.1" y="366.4" width="40.8" height="45.6" class="basket" stroke-dasharray="3 3"/>
+<rect x="484.5" y="300.4" width="3.0" height="79.2" class="dark" />
+<circle cx="468.9" cy="404.8" r="7.2" class="lamp"/>
+<text x="459.3" y="340.0" class="lbl small mid" transform="rotate(-90 459.3 340.0)">빌트인 선반</text>
+<rect x="432.9" y="233.2" width="116.4" height="22.8" class="furn" />
+<text x="491.1" y="226.0" class="lbl small mid" >콘솔</text>
+<rect x="178.0" y="58.0" width="482.9" height="12.0" class="wall" />
+<rect x="648.9" y="58.0" width="12.0" height="48.0" class="wall" />
+<rect x="648.9" y="94.0" width="132.0" height="12.0" class="wall" />
+<rect x="768.9" y="94.0" width="12.0" height="342.0" class="wall" />
+<rect x="58.0" y="424.0" width="722.9" height="12.0" class="wall" />
+<rect x="58.0" y="136.0" width="12.0" height="300.0" class="wall" />
+<rect x="58.0" y="58.0" width="120.0" height="78.0" class="wall" />
+<rect x="645.3" y="106.0" width="7.2" height="63.6" class="wall" />
+<rect x="492.9" y="256.0" width="19.2" height="168.0" class="wall" />
+<rect x="512.1" y="256.0" width="40.8" height="8.7" class="wall" />
+<rect x="630.9" y="256.0" width="21.6" height="8.7" class="wall" />
+<rect x="648.9" y="256.0" width="7.2" height="168.0" class="wall" />
+<rect x="656.1" y="256.0" width="112.8" height="8.7" class="wall" />
+<rect x="58.0" y="172.6" width="12.0" height="179.4" class="window" />
+<line x1="64.0" y1="172.6" x2="64.0" y2="352.0" class="glass" />
+<rect x="768.9" y="130.0" width="12.0" height="102.0" class="gap" />
+<line x1="768.9" y1="130.0" x2="666.9" y2="130.0" class="door" />
+<path d="M666.9,130.0 A102.0,102.0 0 0 0 768.9,232.0" class="swing"/>
+<line x1="552.9" y1="264.7" x2="552.9" y2="340.3" class="door" />
+<path d="M552.9,340.3 A75.6,75.6 0 0 0 628.5,264.7" class="swing"/>
+<line x1="660.9" y1="361.0" x2="768.9" y2="361.0" class="glass" />
+<line x1="70.0" y1="462.4" x2="492.9" y2="462.4" class="dim m" />
+<line x1="70.0" y1="454.0" x2="70.0" y2="470.8" class="dim m" />
+<line x1="492.9" y1="454.0" x2="492.9" y2="470.8" class="dim m" />
+<text x="281.4" y="482.8" class="dimt dim m">3,524 실측</text>
+<line x1="34.0" y1="136.0" x2="34.0" y2="424.0" class="dim m" />
+<line x1="25.6" y1="136.0" x2="42.4" y2="136.0" class="dim m" />
+<line x1="25.6" y1="424.0" x2="42.4" y2="424.0" class="dim m" />
+<text x="22.0" y="280.0" class="dimt dim m" transform="rotate(-90 22.0 280.0)">2,400 실측</text>
+<line x1="531.3" y1="256.0" x2="531.3" y2="424.0" class="dim m" />
+<line x1="522.9" y1="256.0" x2="539.7" y2="256.0" class="dim m" />
+<line x1="522.9" y1="424.0" x2="539.7" y2="424.0" class="dim m" />
+<text x="543.3" y="340.0" class="dimt dim m" transform="rotate(-90 543.3 340.0)">1,400 실측</text>
+<line x1="70.0" y1="278.8" x2="330.4" y2="278.8" class="dim m inner" />
+<line x1="70.0" y1="270.4" x2="70.0" y2="287.2" class="dim m inner" />
+<line x1="330.4" y1="270.4" x2="330.4" y2="287.2" class="dim m inner" />
+<text x="200.2" y="270.4" class="dimt dim m inner">2,170</text>
+<line x1="344.8" y1="288.4" x2="344.8" y2="424.0" class="dim m inner" />
+<line x1="336.4" y1="288.4" x2="353.2" y2="288.4" class="dim m inner" />
+<line x1="336.4" y1="424.0" x2="353.2" y2="424.0" class="dim m inner" />
+<text x="356.8" y="356.2" class="dimt dim m inner" transform="rotate(-90 356.8 356.2)">1,130</text>
+<line x1="330.4" y1="324.4" x2="432.9" y2="324.4" class="dim gap" />
+<line x1="330.4" y1="316.0" x2="330.4" y2="332.8" class="dim gap" />
+<line x1="432.9" y1="316.0" x2="432.9" y2="332.8" class="dim gap" />
+<text x="381.6" y="344.8" class="dimt dim gap">854</text>
+<line x1="432.9" y1="217.6" x2="492.9" y2="217.6" class="dim m inner" />
+<line x1="432.9" y1="209.2" x2="432.9" y2="226.0" class="dim m inner" />
+<line x1="492.9" y1="209.2" x2="492.9" y2="226.0" class="dim m inner" />
+<text x="462.9" y="209.2" class="dimt dim m inner">500</text>
+<line x1="136.0" y1="139.6" x2="136.0" y2="283.6" class="dim m inner" />
+<line x1="127.6" y1="139.6" x2="144.4" y2="139.6" class="dim m inner" />
+<line x1="127.6" y1="283.6" x2="144.4" y2="283.6" class="dim m inner" />
+<text x="124.0" y="211.6" class="dimt dim m inner" transform="rotate(-90 124.0 211.6)">1,200</text>
+<line x1="563.7" y1="144.4" x2="563.7" y2="233.2" class="dim gap" />
+<line x1="555.3" y1="144.4" x2="572.1" y2="144.4" class="dim gap" />
+<line x1="555.3" y1="233.2" x2="572.1" y2="233.2" class="dim gap" />
+<text x="575.7" y="188.8" class="dimt dim gap" transform="rotate(-90 575.7 188.8)">740</text>
+</svg>
+  </div>
+  <p class="note"><b>주황</b> = 실측 치수 · <i>파랑</i> = 남는 간격 · 점선 영역 = 붙박이장 문 여닫이 공간. 덕트, 붙박이장, 주방, 욕실, 현관은 추정 치수예요.</p>
+</main>
+</body>
+</html>
