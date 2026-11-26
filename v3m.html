@@ -307,6 +307,21 @@
   // 러그: 오른쪽 = 빌트인 선반 앞면, 위 = 붙박이장 문 여닫이 끝(0.58+0.6), 아래는 침대 밑으로 살짝
   put('rugRectangle', { x1: 1.1, x2: DX0, z1: 1.18, z2: BZ + 0.6, h: 0.014, colors: { carpet: 0xdcdcda, carpetDarker: 0xbdbdba } });
 
+  // ---------- 침대 발치 파티션: 텐션폴(천장-바닥 압착, 무타공) + 모루 패널 ----------
+  // 두께 4cm, 폭 = 침대 너비(1.13m), 패널은 바닥 0.12m ~ 1.8m (위는 열어 둠), 붙박이장 쪽은 출입을 위해 비움
+  { const px = BL + 0.04, z1 = BZ + 0.02, z2 = D - 0.02, y1 = 0.12, y2 = 1.8;
+    [z1, z2].forEach(z => { cyl(px, z, 0.016, 0, FULL, mat.black, 12);                       // 텐션폴
+      cyl(px, z, 0.03, 0, 0.015, mat.black, 16); cyl(px, z, 0.03, FULL - 0.015, FULL, mat.black, 16); });
+    box(px - 0.012, px + 0.012, z1, z2, y1 - 0.025, y1, mat.black);                          // 하부 레일
+    box(px - 0.012, px + 0.012, z1, z2, y2, y2 + 0.025, mat.black);                          // 상부 레일
+    box(px - 0.008, px + 0.008, z1, z2, 0.95, 0.965, mat.black);                             // 중간 가로대
+    const w = z2 - z1 - 0.03, h = y2 - y1;
+    const g = new THREE.PlaneGeometry(w, h, 180, 1), pos = g.attributes.position;
+    for (let i = 0; i < pos.count; i++) pos.setZ(i, 0.006 * Math.abs(Math.sin((pos.getX(i) / w + 0.5) * Math.PI * 45)));  // 세로 골(모루)
+    g.computeVertexNormals();
+    const reed = new THREE.Mesh(g, new THREE.MeshPhysicalMaterial({ color: 0xe6eef0, roughness: 0.25, metalness: 0, transparent: true, opacity: 0.42, side: THREE.DoubleSide }));
+    reed.rotation.y = Math.PI / 2; reed.position.set(px, y1 + h / 2, (z1 + z2) / 2); reed.receiveShadow = true; scene.add(reed); }
+
   // ---------- 조명 기구 (높이별 3층 구성) ----------
   // [높음] 천장: 아래에서 볼 때만 보이는 면 (위에서 내려다볼 땐 안 가림) → 간접등 빛이 맺히는 면
   { const cm = mat.wall.clone(); cm.side = THREE.BackSide;
