@@ -296,15 +296,40 @@
   const WZ1 = 0.58, WZ2 = WZ1 + 1.2;
   put('desk', { x1: 0, x2: 0.5, z1: WZ1, z2: WZ2, h: 0.76, rot: 1, colors: { wood: 0xf2f2f0, metal: 0x2b2b2b } });
   const WM = (WZ1 + WZ2) / 2 + 0.1;
-  [WM - 0.44, WM].forEach(z => put('computerScreen', { x1: 0.06, x2: 0.24, z1: z + 0.005, z2: z + 0.435, y: 0.76, h: 0.44, rot: 1 })); // 듀얼 모니터
+  [WM - 0.44, WM].forEach(z => put('computerScreen', { x1: 0.06, x2: 0.24, z1: z + 0.005, z2: z + 0.435, y: 0.76, h: 0.5, rot: 1 })); // 듀얼 모니터
   put('computerKeyboard', { x1: 0.28, x2: 0.42, z1: WM - 0.2, z2: WM + 0.2, y: 0.76, h: 0.03, rot: 1 });
   put('computerMouse', { x1: 0.3, x2: 0.36, z1: WM + 0.26, z2: WM + 0.36, y: 0.76, h: 0.03, rot: 1 });
-  put('lampRoundTable', { x1: 0.04, x2: 0.26, z1: 0.6, z2: 0.82, y: 0.76, h: 0.44, uniform: true });
   put('chairDesk', { x1: 0.56, x2: 1.1, z1: WM - 0.27, z2: WM + 0.27, h: 0.95, rot: 2, uniform: true, colors: { carpet: 0x3a3a3a, metalMedium: 0x1e1e1e } });
 
   // ---------- 러그 ----------
   // 러그: 오른쪽 = 빌트인 선반 앞면, 위 = 붙박이장 문 여닫이 끝(0.58+0.6), 아래는 침대 밑으로 살짝
   put('rugRectangle', { x1: 1.1, x2: DX0, z1: 1.18, z2: BZ + 0.6, h: 0.014, colors: { carpet: 0xdcdcda, carpetDarker: 0xbdbdba } });
+
+  // ---------- 조명 기구 (높이별 3층 구성) ----------
+  // [높음] 천장: 아래에서 볼 때만 보이는 면 (위에서 내려다볼 땐 안 가림) → 간접등 빛이 맺히는 면
+  { const cm = mat.wall.clone(); cm.side = THREE.BackSide;
+    const ceil = new THREE.Mesh(new THREE.ShapeGeometry(shape), cm); ceil.rotation.x = -Math.PI / 2; ceil.position.y = FULL; scene.add(ceil); }
+  // [높음] 쉬어 커튼 (창가 벽 전체, 천장 레일부터 바닥까지) — 커튼 위 간접등이 주름을 타고 내려옴
+  { const cw = D - 0.6, ch = 2.3;
+    const g = new THREE.PlaneGeometry(cw, ch, 80, 1), pos = g.attributes.position;
+    for (let i = 0; i < pos.count; i++) pos.setZ(i, 0.02 * Math.sin((pos.getX(i) / cw + 0.5) * Math.PI * 30));
+    g.computeVertexNormals();
+    const cur = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xf1f1ee, roughness: 0.95, side: THREE.DoubleSide, transparent: true, opacity: 0.5 }));
+    cur.rotation.y = Math.PI / 2; cur.position.set(0.04, ch / 2 + 0.01, 0.58 + cw / 2); scene.add(cur); }
+  // [높음] 업라이트 장스탠드 (침대 발치와 선반 사이 아래벽 구석, 높이 1.75m) — 빛을 천장과 벽으로 올림
+  const FLX = BL + 0.3, FLZ = D - 0.22;
+  cyl(FLX, FLZ, 0.13, 0, 0.025, mat.black); cyl(FLX, FLZ, 0.012, 0.025, 1.68, mat.black, 8);
+  cyl(FLX, FLZ, 0.05, 1.66, 1.75, mat.shade, 24, 0.15);                 // 위로 벌어진 갓
+  // [중간] 침대 헤드 옆 벽등 (아래벽, 높이 1.5m, 플러그형) — 독서등 겸 밤 조명
+  const SCX = 0.55, SCZ = D - 0.13;
+  box(SCX - 0.03, SCX + 0.03, D - 0.03, D, 1.42, 1.56, mat.black);     // 벽 브래킷
+  box(SCX - 0.01, SCX + 0.01, D - 0.13, D - 0.03, 1.5, 1.52, mat.black);
+  cyl(SCX, SCZ, 0.07, 1.42, 1.56, mat.shade, 20, 0.05);
+  // [중간] 액자 조명 (빌트인 선반 큰 액자 위) — 방의 시선 포인트
+  box(RW - 0.16, RW - 0.02, MZ - 0.012, MZ + 0.012, 1.47, 1.49, mat.black);
+  box(RW - 0.17, RW - 0.12, MZ - 0.22, MZ + 0.22, 1.46, 1.5, mat.black);
+  // [중간] 모니터 라이트바 (듀얼 모니터 위) — 책상 스탠드 대신
+  box(0.12, 0.2, WM - 0.32, WM + 0.32, 1.27, 1.295, mat.black);
 
   function chair(x, z, rot) {
     const g = new THREE.Group();
@@ -325,19 +350,25 @@
   Object.assign(sun.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 0.5, far: 20 });
   sun.shadow.bias = -0.0005;
   scene.add(sun, sun.target);
-  const warm2 = new THREE.PointLight(0xffc98a, 0.35, 2.2); warm2.position.set(0.15, 1.05, 0.75); scene.add(warm2);
+  const warm2 = new THREE.PointLight(0xffc98a, 0.35, 2.2); warm2.position.set(SCX, 1.4, SCZ); scene.add(warm2);
 
 
+  // 조명 구성: 높음(붙박이장 위·커튼 위 간접등, 업라이트 장스탠드) / 중간(벽등, 액자등, 라이트바, 주방) / 낮음(선반 스탠드, 바닥 간접등)
+  // 밝기 차이를 둬서 깊이를 만듦: 액자·헤드 쪽이 가장 밝고, 바닥 간접등은 가장 약하게
   const MOOD = {
     lamps: [
-      { p: [RW - 0.2, 1.1, D - 0.16], eve: 1, night: 0, shadow: true },    // 빌트인 선반 스탠드
-      { p: [0.16, 1.12, 0.75], eve: 0.8, night: 0.45, shadow: true }       // 창가 책상 스탠드 (밤에는 이것만 은은하게)
+      { p: [RW - 0.2, 1.1, D - 0.16], eve: 0.3, night: 0, shadow: true },   // 빌트인 선반 스탠드
+      { p: [SCX, 1.47, SCZ], eve: 0.4, night: 0.25, shadow: true },          // 침대 벽등 (밤에는 이것만 은은하게)
+      { p: [FLX, 1.82, FLZ], eve: 0.5, night: 0 }                           // 업라이트 장스탠드
     ],
     leds: [
-      { box: [3.56+dx, 4.59+dx, 0.31, 0.34, 1.43, 1.445], lights: [[3.8+dx, 1.38, 0.4], [4.35+dx, 1.38, 0.4]], eve: 0.55, night: 0 },        // 주방 상부장 아래
-      { lights: [[RW - 0.04, 1.16, MZ]], eve: 0.5, night: 0, range: 1.0 },                                                       // 선반 위 액자 쪽 벽 간접등
-      { box: [0.92, KX - 0.02, 0.585, 0.6, 0.008, 0.022], lights: [[1.3, 0.08, 0.72], [2.1, 0.08, 0.72], [2.9, 0.08, 0.72]], eve: 0.3, night: 0.1, range: 0.9 }, // 붙박이장 하부 띠
-      { box: [0.15, BL - 0.03, BZ - 0.015, BZ, 0.012, 0.026], lights: [[0.6, 0.07, BZ - 0.08], [1.6, 0.07, BZ - 0.08]], eve: 0.35, night: 0.3, range: 1.0 } // 침대 하부 간접등
+      { box: [0.95, KX - 0.05, 0.26, 0.29, 2.3, 2.312], lights: [[1.3, 2.37, 0.34], [2.0, 2.37, 0.34], [2.7, 2.37, 0.34]], eve: 0.28, night: 0, range: 1.5 },   // [높음] 붙박이장 위 간접등
+      { box: [0.02, 0.05, 0.6, D - 0.05, 2.31, 2.325], lights: [[0.22, 2.2, 1.0], [0.22, 2.2, 1.7], [0.22, 2.2, 2.4]], eve: 0.2, night: 0.06, range: 1.6 },  // [높음] 커튼 위 간접등
+      { box: [RW - 0.165, RW - 0.125, MZ - 0.2, MZ + 0.2, 1.452, 1.462], lights: [[RW - 0.22, 1.38, MZ]], eve: 0.4, night: 0, range: 1.0 },                  // [중간] 액자 조명
+      { box: [0.125, 0.195, WM - 0.3, WM + 0.3, 1.262, 1.272], lights: [[0.34, 1.18, WM]], eve: 0.25, night: 0, range: 1.0 },                                  // [중간] 모니터 라이트바
+      { box: [3.56+dx, 4.59+dx, 0.31, 0.34, 1.43, 1.445], lights: [[3.8+dx, 1.38, 0.4], [4.35+dx, 1.38, 0.4]], eve: 0.25, night: 0 },                        // [중간] 주방 상부장 아래
+      { box: [0.92, KX - 0.02, 0.585, 0.6, 0.008, 0.022], lights: [[1.3, 0.08, 0.72], [2.1, 0.08, 0.72], [2.9, 0.08, 0.72]], eve: 0.1, night: 0.06, range: 0.9 }, // [낮음] 붙박이장 하부 띠
+      { box: [0.15, BL - 0.03, BZ - 0.015, BZ, 0.012, 0.026], lights: [[0.6, 0.07, BZ - 0.08], [1.6, 0.07, BZ - 0.08]], eve: 0.14, night: 0.16, range: 1.0 }   // [낮음] 침대 하부 간접등
     ]
   };
   // ---------- 분위기 조명 (낮 / 저녁 / 밤) ----------
