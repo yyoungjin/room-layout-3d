@@ -333,10 +333,6 @@
     g.computeVertexNormals();
     const cur = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xf1f1ee, roughness: 0.95, side: THREE.DoubleSide, transparent: true, opacity: 0.5 }));
     cur.rotation.y = Math.PI / 2; cur.position.set(0.04, ch / 2 + 0.01, 0.58 + cw / 2); scene.add(cur); }
-  // [높음] 업라이트 장스탠드 (침대 발치와 선반 사이 아래벽 구석, 높이 1.75m) — 빛을 천장과 벽으로 올림
-  const FLX = BL + 0.3, FLZ = D - 0.22;
-  cyl(FLX, FLZ, 0.13, 0, 0.025, mat.black); cyl(FLX, FLZ, 0.012, 0.025, 1.68, mat.black, 8);
-  cyl(FLX, FLZ, 0.05, 1.66, 1.75, mat.shade, 24, 0.15);                 // 위로 벌어진 갓
   // [중간] 액자 조명 (빌트인 선반 큰 액자 위) — 방의 시선 포인트
   box(RW - 0.16, RW - 0.02, MZ - 0.012, MZ + 0.012, 1.47, 1.49, mat.black);
   box(RW - 0.17, RW - 0.12, MZ - 0.22, MZ + 0.22, 1.46, 1.5, mat.black);
@@ -387,12 +383,11 @@
   const warm2 = new THREE.PointLight(0xffc98a, 0.35, 2.2); warm2.position.set(RW - 0.2, 1.1, D - 0.16); scene.add(warm2);
 
 
-  // 조명 구성: 높음(커튼 위 간접등, 업라이트 장스탠드) / 중간(벽등, 액자등, 라이트바, 주방) / 낮음(선반 스탠드, 바닥 간접등)
+  // 조명 구성: 높음(커튼 위 간접등) / 중간(벽등, 액자등, 라이트바, 주방) / 낮음(선반 스탠드, 바닥 간접등)
   // 밝기 차이를 둬서 깊이를 만듦: 액자·헤드 쪽이 가장 밝고, 바닥 간접등은 가장 약하게
   const MOOD = {
     lamps: [
       { p: [RW - 0.2, 1.1, D - 0.16], eve: 0.3, night: 0, shadow: true },   // 빌트인 선반 스탠드
-      { p: [FLX, 1.82, FLZ], eve: 0.5, night: 0 }                           // 업라이트 장스탠드
     ],
     leds: [
       { box: [0.02, 0.05, 0.6, D - 0.05, 2.31, 2.325], lights: [[0.22, 2.2, 1.0], [0.22, 2.2, 1.7], [0.22, 2.2, 2.4]], eve: 0.2, night: 0.06, range: 1.6 },  // [높음] 커튼 위 간접등
