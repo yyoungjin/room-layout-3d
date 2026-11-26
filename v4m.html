@@ -442,16 +442,30 @@
   const isPortrait = () => camera.aspect < 0.85;
   const pick = name => (isPortrait() && viewsPortrait[name]) || views[name];
   let anim = null;
+  // 둘러보기 모드: '현관에서'·'침대에서' 시점은 서 있는 자리(카메라 위치)를 중심으로 고개를 돌리듯 회전
+  let lookMode = false;
+  function setLook(on) {
+    lookMode = on;
+    controls.rotateSpeed = on ? -0.45 : 1;       // 화면을 잡아 끄는 방향으로 시선이 따라오게
+    controls.enableZoom = !on; controls.enablePan = !on;
+    controls.minPolarAngle = on ? Math.PI * 0.1 : 0;
+    controls.maxPolarAngle = on ? Math.PI * 0.9 : Math.PI * 0.495;
+    if (on) { const d = new THREE.Vector3(); camera.getWorldDirection(d); controls.target.copy(camera.position).addScaledVector(d, 0.05); controls.update(); }
+  }
+  canvas.addEventListener('wheel', e => {          // 둘러보기 모드에서는 휠로 화각(줌)만 조절
+    if (!lookMode) return; e.preventDefault();
+    camera.fov = Math.min(80, Math.max(25, camera.fov + Math.sign(e.deltaY) * 3)); camera.updateProjectionMatrix();
+  }, { passive: false });
   function go(name, instant) {
-    const v = pick(name); curView = name;
+    const v = pick(name); curView = name; setLook(false);
     const fromP = camera.position.clone(), fromT = controls.target.clone();
     const toP = new THREE.Vector3(...v.p), toT = new THREE.Vector3(...v.t);
     if (instant) { camera.position.copy(toP); controls.target.copy(toT); controls.update(); return; }
     const t0 = performance.now();
-    anim = (now) => {
+    anim = () => { const now = performance.now();
       let k = Math.min(1, (now - t0) / 700); k = k < .5 ? 2*k*k : 1 - Math.pow(-2*k + 2, 2) / 2;
       camera.position.lerpVectors(fromP, toP, k); controls.target.lerpVectors(fromT, toT, k);
-      if (k >= 1) anim = null;
+      if (k >= 1) { anim = null; if (name === 'door' || name === 'bed') setLook(true); }
     };
   }
   document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => {
