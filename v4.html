@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3D 배치안 v4</title>
+<style>
+  :root { --bg: #f4f1ec; --ink: #2a2622; --muted: #7a7168; --btn: #ffffff; --btn-on: #2a2622; --btn-on-ink: #ffffff; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #161412; --ink: #efe9e1; --muted: #a59b90; --btn: #26221e; --btn-on: #efe9e1; --btn-on-ink: #161412; }
+  }
+  :root[data-theme="dark"] { --bg: #161412; --ink: #efe9e1; --muted: #a59b90; --btn: #26221e; --btn-on: #efe9e1; --btn-on-ink: #161412; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; overflow: hidden; }
+  #c { position: fixed; inset: 0; }
+  .bar { position: fixed; top: calc(12px + env(safe-area-inset-top)); left: calc(16px + env(safe-area-inset-left)); right: calc(16px + env(safe-area-inset-right)); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; pointer-events: none; }
+  .btns { display: flex; flex-wrap: wrap; gap: 8px; }
+  .bar h1 { font-size: 1.05rem; margin: 0 8px 0 0; pointer-events: auto; }
+  .bar button { pointer-events: auto; border: 0; border-radius: 999px; padding: 6px 12px; font-size: .82rem;
+    background: var(--btn); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.15); cursor: pointer; }
+  .bar button.on { background: var(--btn-on); color: var(--btn-on-ink); }
+  .hint { position: fixed; bottom: 12px; left: 16px; right: 16px; font-size: .78rem; color: var(--muted); pointer-events: none; }
+  #err { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; padding: 16px; text-align: center; }
+  #c { touch-action: none; }
+  .bar button { touch-action: manipulation; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+  @media (max-width: 600px) {
+    .bar { top: calc(8px + env(safe-area-inset-top)); left: 0; right: 0; gap: 6px; }
+    .bar h1 { font-size: .95rem; width: 100%; margin: 0; padding: 0 16px; }
+    .btns { width: 100%; gap: 6px; padding: 2px 16px 0; }
+    .bar button { padding: 8px 12px; font-size: .8rem; }
+    .hint { font-size: .72rem; bottom: calc(10px + env(safe-area-inset-bottom)); }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="bar">
+  <h1>3D 배치안 v4</h1>
+  <div class="btns">
+  <button data-view="iso" class="on">비스듬히</button>
+  <button data-view="top">위에서</button>
+  <button data-view="door">현관에서</button>
+  <button data-view="bed">침대에서</button>
+  <button id="walls">벽 높이: 낮게</button>
+  <button id="mood" class="on">조명: 저녁</button>
+  </div>
+</div>
+<div class="hint" id="hint">드래그: 회전 · 스크롤/핀치: 확대 · 오른쪽 드래그: 이동 · 구조 치수는 추정값</div>
+<div id="err">3D를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해 주세요.</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+  if (!window.THREE || !THREE.OrbitControls) { document.getElementById('err').style.display = 'flex'; return; }
+
+  const canvas = document.getElementById('c');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+
+  const scene = new THREE.Scene();
+  const dark = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches;
+  scene.background = new THREE.Color(dark ? 0x161412 : 0xf2f2f2);
+
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 100);
+  const controls = new THREE.OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  controls.maxPolarAngle = Math.PI * 0.495;
+
+  // ---------- 재질 ----------
+  const M = (c, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.85, metalness: 0 }, o));
+  const mat = {
+    wall: M(0xf4f4f2), wallEdge: M(0xd6d6d4), duct: M(0xbdbdbb),
+    floor: M(0x9f9c98, { roughness: 0.7 }), tile: M(0xe6e6e4), bath: M(0xdfe6e8), shower: M(0xcfdadd),
+    wardrobe: M(0xf3f3f1), groove: M(0xb8b8b6), kitchen: M(0xf5f5f3), counter: M(0x8c8a86), sink: M(0x9aa1a6, { metalness: .4, roughness: .4 }), cook: M(0x222222, { roughness: .3 }),
+    wood: M(0xf2f2f0, { roughness: 0.6 }), woodDk: M(0x262626, { roughness: 0.5 }), linen: M(0xefefed), white: M(0xffffff), sage: M(0x8a8a88), beige: M(0xd4d4d2),
+    rug: M(0xdcdcda), black: M(0x1e1e1e, { roughness: .4 }), screen: M(0x101418, { roughness: .2, emissive: 0x0b1a2a, emissiveIntensity: .6 }),
+    plant: M(0x5f8a58), pot: M(0xcfc6b8), shade: M(0xffffff, { emissive: 0xffe6b8, emissiveIntensity: .7 }),
+    glass: new THREE.MeshPhysicalMaterial({ color: 0xbfe3f5, transparent: true, opacity: 0.25, roughness: 0.05 }),
+    door: M(0xdcdcda), mat: M(0x5a5a5a)
+  };
+
+  // x: 가로(왼쪽 창문 0 → 오른쪽 현관 6.1), z: 세로(위 붙박이장 0 → 아래 2.75), y: 높이
+  function box(x1, x2, z1, z2, y1, y2, m, parent = scene, shadow = true) {
+    const g = new THREE.BoxGeometry(Math.abs(x2 - x1), Math.abs(y2 - y1), Math.abs(z2 - z1));
+    const mesh = new THREE.Mesh(g, m);
+    mesh.position.set((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2);
+    mesh.castShadow = shadow; mesh.receiveShadow = true;
+    parent.add(mesh); return mesh;
+  }
+  function cyl(x, z, r, y1, y2, m, seg = 24, r2) {
+    const g = new THREE.CylinderGeometry(r2 === undefined ? r : r2, r, y2 - y1, seg);
+    const mesh = new THREE.Mesh(g, m);
+    mesh.position.set(x, (y1 + y2) / 2, z); mesh.castShadow = true; mesh.receiveShadow = true;
+    scene.add(mesh); return mesh;
+  }
+
+  // ---------- 실측 치수 (2026-11 실측) ----------
+  // 방 안쪽 가로(아래벽) 3.524m · 왼쪽 벽 유효 2.4m(덕트 아래) · 욕실 쪽 벽 1.4m · 빌트인 ㄱ자 책상 1.4m(폭 0.5, 높이 0.76)
+  // 실측 안 한 부분(덕트, 붙박이장 깊이, 주방, 욕실, 현관)은 기존 추정 비율 유지
+  const RW = 3.524, D = 2.95, WT = D - 1.4;   // RW: 욕실벽 면 x, D: 아래벽 z, WT: 욕실벽 시작 z(=1.55)
+  const dx = RW - 3.8;                         // 욕실·현관 쪽 구조 이동량
+  const RX = 6.1 + dx;                         // 오른쪽(현관) 외벽 x
+  const zb = z => WT + (z - 1.59) * (1.4 / 1.16); // 욕실 구역 z 환산
+
+  // ---------- 바닥 ----------
+  const shape = new THREE.Shape();
+  [[0.9,0],[5.1+dx,0],[5.1+dx,0.3],[RX,0.3],[RX,D],[0,D],[0,0.55],[0.9,0.55]].forEach((p, i) => i ? shape.lineTo(p[0], -p[1]) : shape.moveTo(p[0], -p[1]));
+  const floor = new THREE.Mesh(new THREE.ShapeGeometry(shape), mat.floor);
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+  box(5.13+dx, RX, 0.3, WT, 0, 0.006, mat.tile, scene, false);
+  box(4.42+dx, 5.1+dx, 0.83, 1.45, 0, 0.006, mat.tile, scene, false);
+  box(RW+0.16, 5.1+dx, zb(1.65), D, 0, 0.008, mat.bath, scene, false);
+  box(5.16+dx, RX, zb(1.65), zb(2.30), 0, 0.008, mat.shower, scene, false);
+  box(5.16+dx, RX, zb(2.34), D, 0, 0.008, mat.bath, scene, false);
+
+  // ---------- 벽 (높이 토글) ----------
+  const FULL = 2.4, LOW = 0.45; let wallH = LOW;
+  const wallGroup = new THREE.Group(); scene.add(wallGroup);
+  function w(x1, x2, z1, z2, y1, y2, m = mat.wall) {
+    const top = Math.min(y2, wallH); if (top <= y1) return;
+    box(x1, x2, z1, z2, y1, top, m, wallGroup);
+  }
+  const WIN1 = 0.855, WIN2 = 2.35;             // 창문 z 범위 (왼쪽 벽 비율 유지)
+  function buildWalls() {
+    while (wallGroup.children.length) { const c = wallGroup.children.pop(); c.geometry.dispose(); }
+    const T = 0.1;
+    w(0.9, 5.2+dx, -T, 0, 0, FULL);              // 위 외벽
+    w(5.1+dx, 5.2+dx, -T, 0.3, 0, FULL);
+    w(5.1+dx, RX+T, 0.2, 0.3, 0, FULL);
+    // 오른쪽 외벽 + 현관문 개구부 (z 0.5~1.35)
+    w(RX, RX+T, 0.2, 0.5, 0, FULL); w(RX, RX+T, 1.35, D+T, 0, FULL); w(RX, RX+T, 0.5, 1.35, 2.1, FULL);
+    w(-T, RX+T, D, D + T, 0, FULL);              // 아래 외벽
+    // 왼쪽 외벽 + 창문 (높이 0.9~2.1)
+    w(-T, 0, 0.55, WIN1, 0, FULL); w(-T, 0, WIN2, D+T, 0, FULL);
+    w(-T, 0, WIN1, WIN2, 0, 0.9); w(-T, 0, WIN1, WIN2, 2.1, FULL);
+    if (wallH > 0.9) { const gh = Math.min(2.1, wallH) - 0.9; const g = box(-0.05, -0.04, WIN1, WIN2, 0.9, 0.9 + gh, mat.glass, wallGroup, false); g.receiveShadow = false; }
+    // 내부 벽
+    w(5.07+dx, 5.13+dx, 0.3, 0.83, 0, FULL);     // 현관 칸막이
+    w(RW, RW+0.16, WT, D, 0, FULL);              // 방-욕실 벽 (방 쪽 면 길이 1.4m)
+    w(RW+0.16, 4.3+dx, WT, zb(1.65), 0, FULL); w(4.95+dx, 5.13+dx, WT, zb(1.65), 0, FULL); w(4.3+dx, 4.95+dx, WT, zb(1.65), 2.1, FULL);
+    w(5.1+dx, 5.16+dx, WT, D, 0, FULL);          // 욕실-샤워실
+    w(5.16+dx, RX, WT, zb(1.65), 0, FULL);       // 샤워실 위
+    // 덕트·기둥
+    w(-T, 0.9, -T, 0.55, 0, FULL, mat.duct);
+    // 문
+    w(RX+0.02, RX+0.06, 0.5, 1.35, 0, 2.08, mat.door);                  // 현관문 (닫힘)
+    w(4.3+dx, 4.34+dx, zb(1.65), zb(2.28), 0, 2.05, mat.door);          // 욕실 문 (열림)
+    if (wallH > 0.3) { const g = box(5.2+dx, RX, zb(2.30), zb(2.33), 0, Math.min(1.9, wallH), mat.glass, wallGroup, false); }
+  }
+  buildWalls();
+
+  // ---------- 고정 가구 ----------
+  // 붙박이장 (x 0.9 ~ 주방 시작, 깊이 0.58, 4칸)
+  const KX = 3.52 + dx;                        // 주방 시작 x
+  box(0.9, KX, 0, 0.58, 0, 2.3, mat.wardrobe);
+  [1, 2, 3].forEach(i => { const x = 0.9 + (KX - 0.9) * i / 4; box(x - 0.006, x + 0.006, 0.58, 0.585, 0.05, 2.25, mat.groove, scene, false); });
+  // 주방
+  box(KX, 4.63+dx, 0, 0.6, 0, 0.85, mat.kitchen);
+  box(KX, 4.63+dx, 0, 0.62, 0.85, 0.89, mat.counter);
+  box(3.62+dx, 4.06+dx, 0.12, 0.48, 0.86, 0.895, mat.sink, scene, false);
+  box(4.18+dx, 4.58+dx, 0.1, 0.5, 0.89, 0.9, mat.cook, scene, false);
+  box(KX, 4.63+dx, 0, 0.35, 1.45, 2.2, mat.kitchen);
+
+  // 빌트인 책상 (실측 1.4m × 0.5m, 높이 0.76m) → v3에서는 책상 대신 선반(콘솔)으로만 사용, 모니터 없음
+  // 튀어나오는 회전 상판(벽에서 1.23m)은 벽 쪽으로 접어 넣고 쓰지 않음
+  const DX0 = RW - 0.5, LX0 = DX0, LZ1 = WT, MZ = (WT + D) / 2;
+  box(DX0, RW, WT, D, 0.72, 0.76, mat.wood);                            // 상판 1.4m
+  box(RW - 0.06, RW, WT, D, 0, 0.72, mat.woodDk);                       // 벽쪽 판
+  box(DX0, RW, D - 0.06, D, 0, 0.72, mat.woodDk);                       // 아래벽 쪽 옆판
+  box(DX0, RW, WT, WT + 0.04, 0, 0.72, mat.woodDk);                     // 통로 쪽 옆판 (접힌 상판이 들어가는 쪽)
+  box(DX0 + 0.03, RW - 0.06, WT + 0.04, D - 0.06, 0.28, 0.3, mat.wood); // 하단 선반 (0.30 라인)
+  [[WT + 0.08, mat.beige], [WT + 0.5, mat.sage], [WT + 0.92, mat.beige]].forEach(([z, m]) => box(DX0 + 0.06, RW - 0.1, z, z + 0.38, 0.3, 0.52, m)); // 바구니 3개
+  // 상판 위 스타일링: 낮음(왼쪽 책 더미) → 높음(가운데 큰 액자) → 중간(오른쪽 스탠드)의 삼각 구도
+  // 무채색 유지, 변화는 질감으로(종이·세라믹·리넨), 물건 수는 홀수로 묶기
+  // ① 왼쪽(통로 쪽): 눕혀 쌓은 책 3권 + 위에 블랙 세라믹 오브제
+  [[0.035, mat.white], [0.03, mat.beige], [0.04, mat.woodDk]].reduce((y, [h, m], i) => { box(RW - 0.36 + i * 0.01, RW - 0.1 - i * 0.01, WT + 0.12 + i * 0.01, WT + 0.4 - i * 0.015, y, y + h, m); return y + h; }, 0.76);
+  { const o = new THREE.Mesh(new THREE.SphereGeometry(0.055, 24, 16), mat.black); o.position.set(RW - 0.23, 0.76 + 0.105 + 0.05, WT + 0.26); o.castShadow = true; scene.add(o); }
+  // ② 가운데: 벽에 기댄 큰 액자(블랙 얇은 프레임 + 흰 매트) — 제일 높은 점
+  box(RW - 0.07, RW - 0.045, MZ - 0.33, MZ + 0.33, 0.76, 1.38, mat.woodDk);
+  box(RW - 0.074, RW - 0.07, MZ - 0.3, MZ + 0.3, 0.79, 1.35, mat.white, scene, false);
+  box(RW - 0.077, RW - 0.074, MZ - 0.18, MZ + 0.18, 0.92, 1.22, mat.sage, scene, false);   // 그림 (회색 추상)
+  //    큰 액자 앞쪽에 겹쳐 세운 작은 액자 (레이어링)
+  box(RW - 0.16, RW - 0.135, MZ + 0.12, MZ + 0.4, 0.76, 1.1, mat.white);
+  box(RW - 0.164, RW - 0.16, MZ + 0.15, MZ + 0.37, 0.79, 1.07, mat.linen, scene, false);
+  //    액자 앞 흰 세라믹 화병 (가는 목)
+  cyl(RW - 0.3, MZ - 0.2, 0.065, 0.76, 0.93, mat.white, 24, 0.05); cyl(RW - 0.3, MZ - 0.2, 0.03, 0.93, 1.02, mat.white, 16, 0.025);
+  // ③ 오른쪽(아래벽 쪽): 스탠드 + 블랙 트레이 위 캔들 2개
+  box(DX0 + 0.05, DX0 + 0.3, D - 0.42, D - 0.22, 0.76, 0.772, mat.woodDk);
+  cyl(DX0 + 0.12, D - 0.32, 0.04, 0.772, 0.86, mat.linen, 20); cyl(DX0 + 0.22, D - 0.3, 0.035, 0.772, 0.82, mat.white, 20);
+  cyl(RW - 0.2, D - 0.16, 0.06, 0.76, 0.78, mat.black); cyl(RW - 0.2, D - 0.16, 0.01, 0.78, 1.12, mat.black, 8); cyl(RW - 0.2, D - 0.16, 0.1, 1.08, 1.18, mat.shade, 20, 0.05); // 스탠드
+  // 욕실벽 위 벽선반은 v3에서 제거
+
+  // ---------- 통로 콘솔 선반: 욕실벽(통로 쪽 면)을 따라, 빌트인 선반 앞면(x DX0)까지 연장 ----------
+  // 정렬: 왼쪽 끝 = 빌트인 앞면, 상판 0.76 = 빌트인, 하단 선반 0.30 = 빌트인 하단 선반 → 빌트인과 ㄱ자로 이어지는 한 덩어리
+  // 오른쪽 끝은 욕실 문 앞 3cm에서 멈춤. 깊이 0.19 (주방 카운터와 통로 약 0.74m 확보)
+  { const c1 = DX0, c2 = RW + 0.47, cz = WT - 0.19;
+    box(c1, c2, cz, WT, 0.72, 0.76, mat.wood);
+    [[c1+0.02,cz+0.02],[c2-0.02,cz+0.02],[c1+0.02,WT-0.02],[c2-0.02,WT-0.02],[(c1+c2)/2,cz+0.02]].forEach(p => box(p[0]-0.015, p[0]+0.015, p[1]-0.015, p[1]+0.015, 0, 0.72, mat.woodDk));
+    box(c1+0.01, c2-0.01, cz+0.01, WT-0.01, 0.28, 0.3, mat.wood);
+    [[c1 + 0.06, mat.beige], [c1 + 0.5, mat.sage]].forEach(([x, m]) => box(x, x + 0.4, cz+0.03, WT-0.02, 0.3, 0.46, m)); // 바구니 2개
+    // 상판: 통로 쪽에 키 트레이, 방 쪽에 작은 오브제
+    box(c2-0.3, c2-0.08, cz+0.03, WT-0.04, 0.76, 0.775, mat.woodDk);     // 트레이
+    box(c2-0.27, c2-0.18, cz+0.05, cz+0.12, 0.775, 0.795, mat.black);   // 지갑
+    box(c2-0.15, c2-0.11, cz+0.06, cz+0.13, 0.775, 0.795, mat.black);   // 차키
+    cyl(c1 + 0.2, cz + 0.095, 0.06, 0.76, 0.8, mat.white, 24, 0.07);     // 세라믹 볼
+  }
+
+  // ---------- 현관 · 주방 소품 ----------
+  box(5.28+dx, 5.98+dx, 1.2, 1.44, 0, 0.015, mat.mat, scene, false);
+  box(4.66+dx, 5.06+dx, 0.28, 0.62, 0, 0.89, mat.wood);                // 왜건: 카운터 상판 0.89·앞선 0.62 라인
+
+  // ---------- 침대 (아래벽, 머리 왼쪽) · 실측: 헤드 포함 길이 2.17m, 너비 1.13m, 헤드 높이 1.21m, 전체 흰색 ----------
+  const BL = 2.17, BW = 1.13, BH = 1.21, HT = 0.12;
+  const BZ = D - BW;                           // 침대 시작 z
+  // v4: 침대를 반대로 돌림 — 발치가 창가 벽, 헤드(1.21m)가 방 안쪽에서 낮은 가벽 역할
+  box(BL - HT, BL, BZ, D, 0, BH, mat.white);                           // 헤드 (흰색, 빌트인 선반 쪽)
+  box(0, BL - HT, BZ, D, 0, 0.3, mat.white);                               // 프레임(흰색)
+  box(0.02, BL - HT - 0.02, BZ + 0.02, D - 0.02, 0.3, 0.52, mat.linen); // 매트리스
+  box(0.01, BL - HT - 0.75, BZ + 0.01, D - 0.01, 0.52, 0.56, mat.sage);      // 이불
+
+  // ---------- 침대 옆 작업 책상 (왼쪽 창가 벽) ----------
+  // 왼쪽 벽 남는 길이 1.27m(2.4 - 침대 너비 1.13) → 1.2m 책상, 깊이 0.5 = 빌트인과 동일, 상판 0.76 = 빌트인과 동일
+  // 시작 z 0.58 = 붙박이장 앞선, 끝 z 1.78 (침대 헤드와 4cm)
+  const WZ1 = 0.58, WZ2 = WZ1 + 1.2;
+  box(0.0, 0.5, WZ1, WZ2, 0.72, 0.76, mat.wood);
+  [[0.03, WZ1 + 0.03], [0.47, WZ1 + 0.03], [0.03, WZ2 - 0.03], [0.47, WZ2 - 0.03]].forEach(p => box(p[0]-0.02, p[0]+0.02, p[1]-0.02, p[1]+0.02, 0, 0.72, mat.woodDk));
+  box(0.03, 0.47, WZ1 + 0.06, WZ2 - 0.06, 0.28, 0.3, mat.wood);          // 하단 선반 (0.30 라인)
+  // 모니터 (창 쪽)
+  const WM = (WZ1 + WZ2) / 2 + 0.1;
+  // 듀얼 모니터 (24인치급 2대, 각 폭 0.43)
+  [WM - 0.22, WM + 0.22].forEach(c => {
+    box(0.05, 0.2, c - 0.09, c + 0.09, 0.76, 0.78, mat.black);
+    box(0.1, 0.12, c - 0.03, c + 0.03, 0.78, 0.98, mat.black);
+    box(0.14, 0.16, c - 0.215, c + 0.215, 0.95, 1.25, mat.screen);
+  });
+  box(0.26, 0.42, WM - 0.2, WM + 0.2, 0.76, 0.775, mat.linen);          // 키보드
+  chair(0.82, WM, Math.PI / 2);
+
+  // ---------- 러그 ----------
+  // 러그: 오른쪽 = 빌트인 선반 앞면, 위 = 붙박이장 문 여닫이 끝(0.58+0.6), 아래는 침대 밑으로 살짝
+  box(1.1, DX0, 1.18, BZ + 0.6, 0, 0.012, mat.rug, scene, false);
+
+  // ---------- 조명 기구 (높이별 3층 구성) ----------
+  // [높음] 천장: 아래에서 볼 때만 보이는 면 (위에서 내려다볼 땐 안 가림) → 간접등 빛이 맺히는 면
+  { const cm = mat.wall.clone(); cm.side = THREE.BackSide;
+    const ceil = new THREE.Mesh(new THREE.ShapeGeometry(shape), cm); ceil.rotation.x = -Math.PI / 2; ceil.position.y = FULL; scene.add(ceil); }
+  // [높음] 쉬어 커튼 (창가 벽 전체, 천장 레일부터 바닥까지) — 커튼 위 간접등이 주름을 타고 내려옴
+  { const cw = D - 0.6, ch = 2.3;
+    const g = new THREE.PlaneGeometry(cw, ch, 80, 1), pos = g.attributes.position;
+    for (let i = 0; i < pos.count; i++) pos.setZ(i, 0.02 * Math.sin((pos.getX(i) / cw + 0.5) * Math.PI * 30));
+    g.computeVertexNormals();
+    const cur = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xf1f1ee, roughness: 0.95, side: THREE.DoubleSide, transparent: true, opacity: 0.5 }));
+    cur.rotation.y = Math.PI / 2; cur.position.set(0.04, ch / 2 + 0.01, 0.58 + cw / 2); scene.add(cur); }
+  // [높음] 업라이트 장스탠드 (침대 발치와 선반 사이 아래벽 구석, 높이 1.75m) — 빛을 천장과 벽으로 올림
+  const FLX = BL + 0.3, FLZ = D - 0.22;
+  cyl(FLX, FLZ, 0.13, 0, 0.025, mat.black); cyl(FLX, FLZ, 0.012, 0.025, 1.68, mat.black, 8);
+  cyl(FLX, FLZ, 0.05, 1.66, 1.75, mat.shade, 24, 0.15);                 // 위로 벌어진 갓
+  // [중간] 침대 헤드 옆 벽등 (아래벽, 높이 1.5m, 플러그형) — 독서등 겸 밤 조명
+  const SCX = BL - HT - 0.45, SCZ = D - 0.13;   // 새 머리맡(헤드 안쪽) 위 아래벽
+  box(SCX - 0.03, SCX + 0.03, D - 0.03, D, 1.42, 1.56, mat.black);     // 벽 브래킷
+  box(SCX - 0.01, SCX + 0.01, D - 0.13, D - 0.03, 1.5, 1.52, mat.black);
+  cyl(SCX, SCZ, 0.07, 1.42, 1.56, mat.shade, 20, 0.05);
+  // [중간] 액자 조명 (빌트인 선반 큰 액자 위) — 방의 시선 포인트
+  box(RW - 0.16, RW - 0.02, MZ - 0.012, MZ + 0.012, 1.47, 1.49, mat.black);
+  box(RW - 0.17, RW - 0.12, MZ - 0.22, MZ + 0.22, 1.46, 1.5, mat.black);
+  // [중간] 모니터 라이트바 (듀얼 모니터 위) — 책상 스탠드 대신
+  box(0.12, 0.2, WM - 0.32, WM + 0.32, 1.27, 1.295, mat.black);
+
+  function chair(x, z, rot) {
+    const g = new THREE.Group();
+    const add = (x1,x2,z1,z2,y1,y2,m) => box(x1,x2,z1,z2,y1,y2,m,g);
+    add(-0.22, 0.22, -0.22, 0.22, 0.44, 0.49, mat.woodDk);
+    add(-0.22, 0.22, 0.18, 0.22, 0.49, 0.9, mat.woodDk);
+    add(-0.025, 0.025, -0.025, 0.025, 0.08, 0.44, mat.black);
+    add(-0.22, 0.22, -0.02, 0.02, 0.04, 0.07, mat.black);
+    add(-0.02, 0.02, -0.22, 0.22, 0.04, 0.07, mat.black);
+    g.position.set(x, 0, z); g.rotation.y = rot; scene.add(g);
+  }
+
+  // ---------- 조명 ----------
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x808080, 0.65));
+  const sun = new THREE.DirectionalLight(0xfff1dc, 0.9);
+  sun.position.set(-4, 5, 1.4); sun.target.position.set(2.5, 0, 1.6);
+  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 0.5, far: 20 });
+  sun.shadow.bias = -0.0005;
+  scene.add(sun, sun.target);
+  const warm2 = new THREE.PointLight(0xffc98a, 0.35, 2.2); warm2.position.set(SCX, 1.4, SCZ); scene.add(warm2);
+
+
+  // 조명 구성: 높음(커튼 위 간접등, 헤드 뒤 업라이트 장스탠드) / 중간(벽등, 액자등, 라이트바, 주방) / 낮음(선반 스탠드, 바닥 간접등)
+  // 밝기 차이를 둬서 깊이를 만듦: 액자·헤드 쪽이 가장 밝고, 바닥 간접등은 가장 약하게
+  const MOOD = {
+    lamps: [
+      { p: [RW - 0.2, 1.1, D - 0.16], eve: 0.3, night: 0, shadow: true },   // 빌트인 선반 스탠드
+      { p: [SCX, 1.47, SCZ], eve: 0.4, night: 0.25, shadow: true },          // 침대 벽등 (밤에는 이것만 은은하게)
+      { p: [FLX, 1.82, FLZ], eve: 0.5, night: 0 }                           // 업라이트 장스탠드
+    ],
+    leds: [
+      { box: [0.02, 0.05, 0.6, D - 0.05, 2.31, 2.325], lights: [[0.22, 2.2, 1.0], [0.22, 2.2, 1.7], [0.22, 2.2, 2.4]], eve: 0.2, night: 0.06, range: 1.6 },  // [높음] 커튼 위 간접등
+      { box: [RW - 0.165, RW - 0.125, MZ - 0.2, MZ + 0.2, 1.452, 1.462], lights: [[RW - 0.22, 1.38, MZ]], eve: 0.4, night: 0, range: 1.0 },                  // [중간] 액자 조명
+      { box: [0.125, 0.195, WM - 0.3, WM + 0.3, 1.262, 1.272], lights: [[0.34, 1.18, WM]], eve: 0.25, night: 0, range: 1.0 },                                  // [중간] 모니터 라이트바
+      { box: [3.56+dx, 4.59+dx, 0.31, 0.34, 1.43, 1.445], lights: [[3.8+dx, 1.38, 0.4], [4.35+dx, 1.38, 0.4]], eve: 0.25, night: 0 },                        // [중간] 주방 상부장 아래
+      { box: [0.92, KX - 0.02, 0.585, 0.6, 0.008, 0.022], lights: [[1.3, 0.08, 0.72], [2.1, 0.08, 0.72], [2.9, 0.08, 0.72]], eve: 0.1, night: 0.06, range: 0.9 }, // [낮음] 붙박이장 하부 띠
+      { box: [0.15, BL - 0.03, BZ - 0.015, BZ, 0.012, 0.026], lights: [[0.6, 0.07, BZ - 0.08], [1.6, 0.07, BZ - 0.08]], eve: 0.14, night: 0.16, range: 1.0 }   // [낮음] 침대 하부 간접등
+    ]
+  };
+  // ---------- 분위기 조명 (낮 / 저녁 / 밤) ----------
+  const hemi = scene.children.find(o => o.isHemisphereLight);
+  const dayBg = scene.background.clone();
+  const moon = new THREE.DirectionalLight(0x9fb4ff, 0); moon.position.set(-4, 3, 1.4); moon.target.position.set(2, 0, 1.6); scene.add(moon, moon.target);
+  const ledMat = () => new THREE.MeshStandardMaterial({ color: 0xfff0dc, emissive: 0xffb15e, emissiveIntensity: 0 });
+  // 스탠드 조명: 전구 위치에 따뜻한 포인트 라이트 + 갓 발광
+  const lamps = MOOD.lamps.map(l => {
+    const L = new THREE.PointLight(0xffb066, 0, 5, 2); L.position.set(...l.p);
+    if (l.shadow) { L.castShadow = true; L.shadow.mapSize.set(512, 512); L.shadow.camera.near = 0.05; L.shadow.bias = -0.003; }
+    scene.add(L); return { l, L, shades: [] };
+  });
+  scene.traverse(o => {
+    if (!o.isMesh || o.material !== mat.shade) return;
+    o.material = mat.shade.clone(); o.castShadow = false;
+    let best = null, bd = 1e9;
+    lamps.forEach(k => { const d = Math.hypot(k.l.p[0] - o.position.x, k.l.p[2] - o.position.z); if (d < bd) { bd = d; best = k; } });
+    if (best && bd < 0.3) best.shades.push(o);
+  });
+  // 간접조명(LED 스트립): 발광 띠 + 낮은 포인트 라이트
+  const leds = MOOD.leds.map(d => {
+    let strip = null;
+    if (d.box) { const [x1, x2, z1, z2, y1, y2] = d.box; strip = box(x1, x2, z1, z2, y1, y2, ledMat(), scene, false); }
+    const Ls = d.lights.map(p => { const L = new THREE.PointLight(0xffb873, 0, (d.range || 1.3) * 1.4, 2); L.position.set(...p); scene.add(L); return L; });
+    return { d, strip, Ls };
+  });
+  const MODES = [
+    { name: '낮' }, { name: '저녁' }, { name: '밤' }
+  ];
+  let mood = 0;
+  function setMood(m) {
+    mood = m; const day = m === 0, eve = m === 1;
+    hemi.intensity = day ? 0.65 : eve ? 0.09 : 0.03;
+    hemi.color.set(day ? 0xffffff : 0x7f8db3); hemi.groundColor.set(day ? 0x808080 : 0x3b2d22);
+    sun.intensity = day ? 0.9 : 0; moon.intensity = day ? 0 : eve ? 0.06 : 0.04;
+    warm2.intensity = day ? 0.35 : 0;
+    lamps.forEach(k => {
+      const v = day ? 0 : eve ? (k.l.eve ?? 1) : (k.l.night || 0);
+      k.L.intensity = v * 2.6;
+      k.shades.forEach(s => { s.material.emissiveIntensity = v > 0 ? 0.6 + v : 0; s.material.emissive.set(0xffc27a); });
+    });
+    leds.forEach(e => {
+      const v = day ? 0 : eve ? e.d.eve : e.d.night;
+      e.Ls.forEach(L => L.intensity = v * 2.2);
+      if (e.strip) e.strip.material.emissiveIntensity = v > 0 ? 1.2 + v : 0;
+    });
+    mat.screen.emissiveIntensity = day ? 0.6 : eve ? 1.2 : 0.05;
+    scene.background = day ? dayBg : new THREE.Color(eve ? 0x0d0f15 : 0x06070a);
+    mb.textContent = '조명: ' + MODES[m].name;
+    mb.classList.toggle('on', m !== 0);
+  }
+  const mb = document.getElementById('mood');
+  mb.addEventListener('click', () => setMood((mood + 1) % 3));
+  setMood(+(new URLSearchParams(location.search).get('mood') ?? 1));   // 기본: 저녁
+
+  // ---------- 시점 ----------
+  const views = {
+    iso:  { p: [2.9, 6.6, 6.6], t: [2.9, 0.2, 1.35] },
+    top:  { p: [2.9, 8.6, 1.48], t: [2.9, 0, 1.47] },
+    door: { p: [5.3, 1.6, 0.9],  t: [1.4, 0.9, 1.75] },
+    bed:  { p: [1.75, 1.0, 2.38], t: [0.0, 1.0, 1.6] }
+  };
+
+  // 세로 화면(모바일)용 시점: 방의 긴 축(6.1m)이 화면 세로로 오도록
+  const viewsPortrait = {
+    iso: { p: [10.3, 7.4, 5.4], t: [2.9, 0.1, 1.55] },
+    top: { p: [2.91, 7.4, 1.47], t: [2.9, 0, 1.47] }
+  };
+  let curView = 'iso', wasPortrait = null;
+  const isPortrait = () => camera.aspect < 0.85;
+  const pick = name => (isPortrait() && viewsPortrait[name]) || views[name];
+  let anim = null;
+  function go(name, instant) {
+    const v = pick(name); curView = name;
+    const fromP = camera.position.clone(), fromT = controls.target.clone();
+    const toP = new THREE.Vector3(...v.p), toT = new THREE.Vector3(...v.t);
+    if (instant) { camera.position.copy(toP); controls.target.copy(toT); controls.update(); return; }
+    const t0 = performance.now();
+    anim = (now) => {
+      let k = Math.min(1, (now - t0) / 700); k = k < .5 ? 2*k*k : 1 - Math.pow(-2*k + 2, 2) / 2;
+      camera.position.lerpVectors(fromP, toP, k); controls.target.lerpVectors(fromT, toT, k);
+      if (k >= 1) anim = null;
+    };
+  }
+  document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('on', x === b));
+    if ((b.dataset.view === 'door' || b.dataset.view === 'bed') && wallH < FULL) setWalls(FULL);
+    go(b.dataset.view);
+  }));
+  const wb = document.getElementById('walls');
+  function setWalls(h) { wallH = h; buildWalls(); wb.textContent = '벽 높이: ' + (h < FULL ? '낮게' : '실제'); }
+  wb.addEventListener('click', () => setWalls(wallH < FULL ? FULL : LOW));
+
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h, false); camera.aspect = w / h;
+    camera.fov = w < 600 ? 60 : 45; camera.updateProjectionMatrix();
+    if (wasPortrait !== null && isPortrait() !== wasPortrait) go(curView, true);
+    wasPortrait = isPortrait();
+  }
+  window.addEventListener('resize', resize); resize();
+  go('iso', true);
+  if (matchMedia('(pointer: coarse)').matches) document.getElementById('hint').textContent = '한 손가락: 회전 · 두 손가락: 확대/이동 · 치수는 추정값';
+
+  renderer.setAnimationLoop((now) => { if (anim) anim(now); controls.update(); renderer.render(scene, camera); });
+})();
+</script>
+</body>
+</html>
