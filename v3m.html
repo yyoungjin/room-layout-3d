@@ -140,6 +140,7 @@
       pivot.scale.set(sx, sy, sz);
       pivot.position.set(o.x1 + ox - bb.min.x * sx, (o.y || 0) - bb.min.y * sy, o.z1 + oz - bb.min.z * sz);
       const pal = Object.assign({}, PALETTE, o.colors || {});
+      if (o.hide) m.traverse(c => { if (o.hide.includes(c.name)) c.visible = false; });
       m.traverse(c => {
         if (!c.isMesh) return;
         c.castShadow = true; c.receiveShadow = true;
@@ -287,8 +288,7 @@
   const BL = 2.17, BW = 1.13, BH = 1.21, HT = 0.12;
   const BZ = D - BW;                           // 침대 시작 z
   box(0.0, HT, BZ, D, 0, BH, mat.white);                               // 헤드 (흰색)
-  put('bedSingle', { x1: HT, x2: BL, z1: BZ, z2: D, h: 0.62, rot: 1, colors: { wood: 0xf7f7f5, carpet: 0x8a8a88, carpetWhite: 0xf4f4f2 } });
-  [0.75, 1.22, 1.69].forEach((x, i) => put('pillow', { x1: x, x2: x + 0.4, z1: D - 0.2, z2: D - 0.04, y: 0.5, h: 0.34, rot: 0, colors: { carpet: i === 1 ? 0x6f6f6d : 0xdcdcda } })); // 벽쪽 쿠션
+  put('bedSingle', { x1: HT, x2: BL, z1: BZ, z2: D, h: 0.62, rot: 1, hide: ['pillow'], colors: { wood: 0xf7f7f5, carpet: 0x8a8a88, carpetWhite: 0xf4f4f2 } });
 
   // ---------- 침대 옆 작업 책상 (왼쪽 창가 벽) ----------
   // 왼쪽 벽 남는 길이 1.27m(2.4 - 침대 너비 1.13) → 1.2m 책상, 깊이 0.5 = 빌트인과 동일, 상판 0.76 = 빌트인과 동일
@@ -296,10 +296,10 @@
   const WZ1 = 0.58, WZ2 = WZ1 + 1.2;
   put('desk', { x1: 0, x2: 0.5, z1: WZ1, z2: WZ2, h: 0.76, rot: 1, colors: { wood: 0xf2f2f0, metal: 0x2b2b2b } });
   const WM = (WZ1 + WZ2) / 2 + 0.1;
-  put('computerScreen', { x1: 0.06, x2: 0.24, z1: WM - 0.31, z2: WM + 0.31, y: 0.76, h: 0.46, rot: 1 });
+  [WM - 0.44, WM].forEach(z => put('computerScreen', { x1: 0.06, x2: 0.24, z1: z + 0.005, z2: z + 0.435, y: 0.76, h: 0.44, rot: 1 })); // 듀얼 모니터
   put('computerKeyboard', { x1: 0.28, x2: 0.42, z1: WM - 0.2, z2: WM + 0.2, y: 0.76, h: 0.03, rot: 1 });
   put('computerMouse', { x1: 0.3, x2: 0.36, z1: WM + 0.26, z2: WM + 0.36, y: 0.76, h: 0.03, rot: 1 });
-  put('lampRoundTable', { x1: 0.04, x2: 0.28, z1: 0.63, z2: 0.87, y: 0.76, h: 0.44, uniform: true });
+  put('lampRoundTable', { x1: 0.04, x2: 0.26, z1: 0.6, z2: 0.82, y: 0.76, h: 0.44, uniform: true });
   put('chairDesk', { x1: 0.56, x2: 1.1, z1: WM - 0.27, z2: WM + 0.27, h: 0.95, rot: 2, uniform: true, colors: { carpet: 0x3a3a3a, metalMedium: 0x1e1e1e } });
 
   // ---------- 러그 ----------
